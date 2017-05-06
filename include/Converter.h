@@ -25,7 +25,6 @@
 class Converter {
 private:
     std::ifstream carmen_file;
-    std::ofstream bag_file;
 
     /* static constants defines */
     static const std::vector<std::string> LASER_MESSAGE_DEFINED;
@@ -60,13 +59,15 @@ private:
 
     std::unordered_map<std::string, std::string> topics;
     std::unordered_map<std::string, std::string> links;
-    std::unordered_map<std::string, std::unordered_map<std::string, float>> params;
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> params;
 
     void fillUpOdomMessage(std::vector<std::string> &words);
     void fillUpLaserMessage(std::vector<std::string> &words);
     void fillUpOldLaserMessage(std::vector<std::string> &words);
     void fillUpRobotLaserMessage(std::vector<std::string> &words);
     void fillUpTruePoseMessage(std::vector<std::string> &words);
+
+    void parse_robot_param(std::vector<std::string> &words);
     void increment_stamp();
 
 public:

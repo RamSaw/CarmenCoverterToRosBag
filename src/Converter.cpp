@@ -129,10 +129,8 @@ void Converter::convert(std::string input_filename, std::string output_filename)
         std::istringstream iss(line);
         std::vector<std::string> words{std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
 
-        if (pause) { /// If statement is not needed
-            while (pause)
-                ros::Duration(1 / rate).sleep();
-        }
+        while (pause)
+            ros::Duration(1 / rate).sleep();
 
         if (std::find(LASER_MESSAGE_DEFINED.begin(), LASER_MESSAGE_DEFINED.end(), words[0])
             != LASER_MESSAGE_DEFINED.end()) {
@@ -213,7 +211,15 @@ void Converter::convert(std::string input_filename, std::string output_filename)
 
             pose_msg.header.seq = true_pose_msg.header.seq + 1;
         }
-
+        else if (PARAM_DEFINED == words[0])
+            parse_robot_param(words);
+        else {
+            if (std::find(unknown_entries.begin(), unknown_entries.end(), words[0]) == unknown_entries.end()) {
+                unknown_entries.push_back(words[0]);
+                if (words[0] != "#")
+                    std::cerr << "Uknown entry " << words[0];
+            }
+        }
         increment_stamp();
         tf2_msg = tf::tfMessage();
     }
@@ -279,21 +285,21 @@ void Converter::fillUpOldLaserMessage(std::vector<std::string> &words) {
     std::string laser_id = Params::laserId2ParamPrefix(words[0]);
 
     /* Get FoV */
-    float ang_range = params["laser"][laser_id + "_fov"];
+    float ang_range = std::stof(params["laser"][laser_id + "_fov"].c_str());
     if (ang_range == 0)
         ang_range = 180;
     else
         ang_range = radians(ang_range);
 
     /* Get angular resolution */
-    float ang_res = params["laser"][laser_id + "_resolution"];
+    float ang_res = std::stof(params["laser"][laser_id + "_resolution"].c_str());
     if (ang_res == 0)
         ang_res = radians(ang_range) / num_range_readings;
     else
         ang_res = radians(ang_res);
 
     /* Get max reading */
-    float max_reading = params["robot"][laser_id + "_max"];
+    float max_reading = std::stof(params["robot"][laser_id + "_max"].c_str());
     if (max_reading == 0)
         max_reading = 20;
 
@@ -532,6 +538,26 @@ void Converter::fillUpTruePoseMessage(std::vector<std::string> &words) {
 
     ///tf2_msg.transforms[0] = tf_odom_robot_msg
     tf2_msg.transforms.push_back(tf_odom_robot_msg);
+}
+
+void Converter::parse_robot_param(std::vector<std::string> &words) {
+    std::size_t i_s = words[1].find("_");
+    std::string prefix(words[1].begin(), words[1].begin() + i_s);
+    std::string actual_param(words[1].begin() + i_s + 1, words[1].end());
+
+    if (params.find(prefix) == params.end()) {
+        std::cerr << "Unknown param prefix '" + prefix + "' param '" + actual_param + "' ignored." << std::endl;
+        return;
+    }
+    std::unordered_map<std::string, std::string>& params_by_prefix = params[prefix];
+
+    if (params_by_prefix.find(actual_param) == params_by_prefix.end()) {
+        std::cerr << "Unknown param " << actual_param << std::endl;
+        return;
+    }
+
+    params_by_prefix[actual_param] = words[2];
+    std::cout << "Param " << words[1] << " has value: " << words[2] << std::endl;
 }
 
 void Converter::increment_stamp() {

@@ -12,3 +12,4 @@ const std::string Converter::ODOM_DEFINED = "ODOM";
 const std::string Converter::TRUEPOS_DEFINED = "TRUEPOS";
 const std::string Converter::PARAM_DEFINED = "PARAM";
 const std::string Converter::SYNC_DEFINED = "SYNC";
+
