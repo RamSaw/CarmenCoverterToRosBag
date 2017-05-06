@@ -202,6 +202,17 @@ void Converter::convert(std::string input_filename, std::string output_filename)
                 tf_odom_robot_msg.header.seq = tf_odom_robot_msg.header.seq + 1;
             }
         }
+        else if (TRUEPOS_DEFINED == words[0]) {
+            fillUpTruePoseMessage(words);
+
+            std::string topic = topics[words[0]];
+            bag.write(topic, true_pose_msg.header.stamp, true_pose_msg);
+
+            topic = topics["TF"];
+            bag.write(topic, true_pose_msg.header.stamp, tf2_msg);
+
+            pose_msg.header.seq = true_pose_msg.header.seq + 1;
+        }
 
         increment_stamp();
         tf2_msg = tf::tfMessage();
@@ -420,9 +431,7 @@ void Converter::fillUpRobotLaserMessage(std::vector<std::string> &words) {
     pose_msg.header.stamp = laser_msg.header.stamp;
 
     /* pose_msg.pose.pose.position = position; */
-    pose_msg.pose.pose.position.x = position.x;
-    pose_msg.pose.pose.position.y = position.y;
-    pose_msg.pose.pose.position.z = position.z;
+    pose_msg.pose.pose.position = position;
 
     pose_msg.pose.pose.orientation.x = quaternion.x();
     pose_msg.pose.pose.orientation.y = quaternion.y();
@@ -444,9 +453,7 @@ void Converter::fillUpOdomMessage(std::vector<std::string> &words) {
     position.y = atof(words[2].c_str());
     position.z = 0.0;
     /* Write position to pose_msg */
-    pose_msg.pose.pose.position.x = position.x;
-    pose_msg.pose.pose.position.y = position.y;
-    pose_msg.pose.pose.position.z = position.z;
+    pose_msg.pose.pose.position = position;
 
     tf::Quaternion quaternion;
     quaternion.setEuler(0.0, 0.0, atof(words[3].c_str()));
@@ -481,6 +488,50 @@ void Converter::fillUpOdomMessage(std::vector<std::string> &words) {
 
         tf2_msg.transforms.push_back(tf_odom_robot_msg);
     }
+}
+
+void Converter::fillUpTruePoseMessage(std::vector<std::string> &words) {
+    true_pose_msg.header.stamp = stamp;
+
+    geometry_msgs::Point position;
+    position.x = atof(words[1].c_str());
+    position.y = atof(words[2].c_str());
+    position.z = 0.0;
+    true_pose_msg.pose.pose.position = position;
+
+    tf::Quaternion quaternion;
+    quaternion.setEuler(0.0, 0.0, atof(words[3].c_str()));
+    true_pose_msg.pose.pose.orientation.x = quaternion.x();
+    true_pose_msg.pose.pose.orientation.y = quaternion.y();
+    true_pose_msg.pose.pose.orientation.z = quaternion.z();
+    true_pose_msg.pose.pose.orientation.w = quaternion.w();
+
+    std::string odom_link  = links[words[0]];
+    std::string robot_link = links["ROBOT"];
+
+    pose_msg.header.frame_id = odom_link; /// or true_pose_msg?
+
+
+    ///pose_msg.child_frame_id  = ?_link
+    ///pose_msg.twist.linear  = float(words[4])
+    ///pose_msg.twist.angular = float(words[5])
+
+    tf_odom_robot_msg.header.stamp = true_pose_msg.header.stamp;
+    tf_odom_robot_msg.header.frame_id = odom_link;
+    tf_odom_robot_msg.child_frame_id = robot_link;
+
+    /* tf_odom_robot_msg.transform.translation = position; */
+    tf_odom_robot_msg.transform.translation.x = position.x;
+    tf_odom_robot_msg.transform.translation.y = position.y;
+    tf_odom_robot_msg.transform.translation.z = position.z;
+
+    tf_odom_robot_msg.transform.rotation.x  = quaternion.x();
+    tf_odom_robot_msg.transform.rotation.y  = quaternion.y();
+    tf_odom_robot_msg.transform.rotation.z  = quaternion.z();
+    tf_odom_robot_msg.transform.rotation.w  = quaternion.w();
+
+    ///tf2_msg.transforms[0] = tf_odom_robot_msg
+    tf2_msg.transforms.push_back(tf_odom_robot_msg);
 }
 
 void Converter::increment_stamp() {

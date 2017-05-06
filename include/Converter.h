@@ -66,6 +66,7 @@ private:
     void fillUpLaserMessage(std::vector<std::string> &words);
     void fillUpOldLaserMessage(std::vector<std::string> &words);
     void fillUpRobotLaserMessage(std::vector<std::string> &words);
+    void fillUpTruePoseMessage(std::vector<std::string> &words);
     void increment_stamp();
 
 public:
