@@ -219,6 +219,7 @@ void Converter::convert(std::string input_filename, std::string output_filename)
                 if (words[0] != "#")
                     std::cerr << "Uknown entry " << words[0];
             }
+
         }
         increment_stamp();
         tf2_msg = tf::tfMessage();
@@ -284,24 +285,27 @@ void Converter::fillUpOldLaserMessage(std::vector<std::string> &words) {
 
     std::string laser_id = Params::laserId2ParamPrefix(words[0]);
 
+    /* Set to Default better, test file converts incorrectly on params */
     /* Get FoV */
-    float ang_range = std::stof(params["laser"][laser_id + "_fov"].c_str());
-    if (ang_range == 0)
+    float ang_range;
+    if (params["laser"][laser_id + "_fov"].c_str() == "")
         ang_range = 180;
     else
-        ang_range = radians(ang_range);
+        ang_range = radians(std::stof(params["laser"][laser_id + "_fov"].c_str()));
 
     /* Get angular resolution */
-    float ang_res = std::stof(params["laser"][laser_id + "_resolution"].c_str());
-    if (ang_res == 0)
+    float ang_res;
+    if (params["laser"][laser_id + "_resolution"] == "")
         ang_res = radians(ang_range) / num_range_readings;
     else
-        ang_res = radians(ang_res);
+        ang_res = radians(std::stof(params["laser"][laser_id + "_resolution"].c_str()));
 
     /* Get max reading */
-    float max_reading = std::stof(params["robot"][laser_id + "_max"].c_str());
-    if (max_reading == 0)
+    float max_reading;
+    if (params["robot"][laser_id + "_max"] == "")
         max_reading = 20;
+    else
+        max_reading = std::stof(params["robot"][laser_id + "_max"].c_str());
 
     /* Init laser msg */
     float ang_min = radians(-ang_range / 2);
