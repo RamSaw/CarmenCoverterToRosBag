@@ -55,34 +55,6 @@ private:
 
     int rate; /// double ??
 
-    std::string RAWLASER1_topic;
-    std::string RAWLASER2_topic;
-    std::string RAWLASER3_topic;
-    std::string RAWLASER4_topic;
-
-    std::string FLASER_topic;
-    std::string RLASER_topic;
-    std::string LASER3_topic;
-    std::string LASER4_topic;
-
-    std::string ROBOTLASER1_topic;
-    std::string ROBOTLASER2_topic;
-
-    std::string NMEAGGA_topic;
-    std::string NMEARMC_topic;
-
-    std::string ODOM_topic;
-    std::string TRUEPOS_topic;
-
-    std::string tf_topic;
-
-    std::string robot_link;
-    std::string odom_link;
-    std::string odom_robot_link;
-    std::string true_odom_link;
-    std::string ROBOTLASER1_link;
-    std::string ROBOTLASER2_link;
-
     /* If false(default) then ODOM is published on tf, true - ROBOTLASER1 */
     bool publish_corrected;
 
@@ -93,6 +65,7 @@ private:
     void fillUpOdomMessage(std::vector<std::string> &words);
     void fillUpLaserMessage(std::vector<std::string> &words);
     void fillUpOldLaserMessage(std::vector<std::string> &words);
+    void fillUpRobotLaserMessage(std::vector<std::string> &words);
     void increment_stamp();
 
 public:

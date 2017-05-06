@@ -16,6 +16,33 @@ Converter::Converter(int argc, char** argv) : tf_tr(true, ros::Duration(2.0)) {
     
     ros::param::param<int>("~global_rate", rate, 40); /// Double ???
 
+    std::string RAWLASER1_topic;
+    std::string RAWLASER2_topic;
+    std::string RAWLASER3_topic;
+    std::string RAWLASER4_topic;
+
+    std::string FLASER_topic;
+    std::string RLASER_topic;
+    std::string LASER3_topic;
+    std::string LASER4_topic;
+
+    std::string ROBOTLASER1_topic;
+    std::string ROBOTLASER2_topic;
+
+    std::string NMEAGGA_topic;
+    std::string NMEARMC_topic;
+
+    std::string ODOM_topic;
+    std::string TRUEPOS_topic;
+
+    std::string tf_topic;
+
+    std::string robot_link;
+    std::string odom_link;
+    std::string odom_robot_link;
+    std::string true_odom_link;
+    std::string ROBOTLASER1_link;
+    std::string ROBOTLASER2_link;
 
     ros::param::param<std::string>("~RAWLASER1_topic", RAWLASER1_topic, "/RAWLASER1");
     ros::param::param<std::string>("~RAWLASER2_topic", RAWLASER2_topic, "/RAWLASER2");
@@ -134,9 +161,31 @@ void Converter::convert(std::string input_filename, std::string output_filename)
                     topic = topics["TF"];
                     bag.write(topic, laser_msg.header.stamp,  tf2_msg);
 
-                    laser_msg.header.seq = laser_msg.header.seq + 1;
                 }
+                laser_msg.header.seq = laser_msg.header.seq + 1;
             }
+        }
+        else if (std::find(ROBOT_LASER_MESSAGE_DEFINED.begin(), ROBOT_LASER_MESSAGE_DEFINED.end(), words[0])
+                 != ROBOT_LASER_MESSAGE_DEFINED.end()) {
+
+            std::cout << "Converting new ROBOT LASER message" << std::endl;
+            fillUpRobotLaserMessage(words);
+
+            std::string topic = topics[words[0]];
+            bag.write(topic, laser_msg.header.stamp, laser_msg);
+
+            if (publish_corrected) {
+                topic = topics["TF"];
+                bag.write(topic, laser_msg.header.stamp, tf2_msg);
+
+                topic = topics["ODOM"];
+                bag.write(topic, pose_msg.header.stamp, pose_msg);
+
+                pose_msg.header.seq = pose_msg.header.seq + 1;
+                tf_laser_robot_msg.header.seq = tf_laser_robot_msg.header.seq + 1;
+                tf_odom_robot_msg.header.seq = tf_odom_robot_msg.header.seq + 1;
+            }
+            laser_msg.header.seq = laser_msg.header.seq + 1;
         }
         else if (words[0] == ODOM_DEFINED) {
             std::cout << "Converting new ODOM message" << std::endl;
@@ -188,7 +237,7 @@ void Converter::fillUpLaserMessage(std::vector<std::string> &words) {
         if ((round((laser_msg.angle_max - laser_msg.angle_min) / laser_msg.angle_increment) + 1) > num_range_readings)
             laser_msg.angle_min = laser_msg.angle_min + factor_angle_fitting;
         else
-            laser_msg.angle_max = laser_msg.angle_max - factor_angle_fitting;
+            laser_msg.angle_max = laser_msg.angle_max - factor_angle_fitting; /// +
 
         factor_angle_fitting = factor_angle_fitting / 2;
     }
@@ -251,8 +300,8 @@ void Converter::fillUpOldLaserMessage(std::vector<std::string> &words) {
     laser_msg.ranges = ranges;
     laser_msg.header.stamp = ros::Time(atof(words[last_range_reading + 7].c_str()));
 
-    robot_link = links["ROBOT"];
-    odom_link  = links["ROBOTODOM"];
+    std::string robot_link = links["ROBOT"];
+    std::string odom_link  = links["ROBOTODOM"];
 
     // tf needs to be publish a little bit in the future
     tf_odom_robot_msg.header.stamp = laser_msg.header.stamp + ros::Duration(0.01);
@@ -279,6 +328,109 @@ void Converter::fillUpOldLaserMessage(std::vector<std::string> &words) {
     tf_odom_robot_msg.transform.rotation.w  = quaternion.w();
 
     tf2_msg.transforms.push_back(tf_odom_robot_msg);
+}
+
+void Converter::fillUpRobotLaserMessage(std::vector<std::string> &words) {
+    std::string laser_link = links[words[0]];
+    std::string robot_link = links["ROBOT"];
+    std::string odom_link  = links["ROBOTODOM"];
+
+    laser_msg.header.frame_id = robot_link; //laser_link
+
+    laser_msg.angle_increment = std::stof(words[4].c_str());
+    laser_msg.angle_min = std::stof((words[2].c_str())) + laser_msg.angle_increment / 2;
+    laser_msg.angle_max = std::stof(words[2].c_str()) + std::stof(words[3].c_str()) - laser_msg.angle_increment / 2;
+
+    laser_msg.range_min = 0;
+    laser_msg.range_max = std::stof(words[5].c_str());
+
+    std::vector<float> ranges;
+    int num_range_readings = atoi(words[8].c_str());
+    int last_range_reading = num_range_readings + 8;
+
+    for (int i = 9; i < last_range_reading + 1; i++)
+        ranges.push_back(std::stof(words[i].c_str()));
+
+    laser_msg.ranges = ranges;
+
+    /* min-max angle fitting, Karto need */
+    float factor_angle_fitting = laser_msg.angle_increment / 2;
+    while ((round((laser_msg.angle_max - laser_msg.angle_min)/laser_msg.angle_increment) + 1) != num_range_readings) {
+        if ((round((laser_msg.angle_max - laser_msg.angle_min) / laser_msg.angle_increment) + 1) > num_range_readings)
+           laser_msg.angle_min = laser_msg.angle_min + factor_angle_fitting;
+        else
+            laser_msg.angle_max = laser_msg.angle_max + factor_angle_fitting;
+        factor_angle_fitting = factor_angle_fitting / 2;
+    }
+
+    laser_msg.header.stamp = ros::Time(atof(words[last_range_reading + 13].c_str()));
+
+    geometry_msgs::Point position;
+    position.x = atof(words[last_range_reading + 2].c_str());
+    position.y = atof(words[last_range_reading + 3].c_str());
+    position.z = 0;
+
+    tf::Quaternion quaternion;
+    quaternion.setEuler(0, 0, atof(words[last_range_reading + 4].c_str()));
+
+    tf_laser_robot_msg.header.stamp = laser_msg.header.stamp;
+
+    tf_laser_robot_msg.header.frame_id = robot_link;
+    tf_laser_robot_msg.child_frame_id = laser_link;
+
+    /* tf_laser_robot_msg.transform.translation = position */
+    tf_laser_robot_msg.transform.translation.x = position.x;
+    tf_laser_robot_msg.transform.translation.y = position.y;
+    tf_laser_robot_msg.transform.translation.z = position.z;
+
+    tf_laser_robot_msg.transform.rotation.x  = quaternion.x();
+    tf_laser_robot_msg.transform.rotation.y  = quaternion.y();
+    tf_laser_robot_msg.transform.rotation.z  = quaternion.z();
+    tf_laser_robot_msg.transform.rotation.w  = quaternion.w();
+
+    /*
+     * This transform is actually odom->laser_link
+     * need to compute base_link->laser_link
+     * tf2_msg.transforms.append(tf_laser_robot_msg)
+     */
+    position.x = atof(words[last_range_reading + 5].c_str());
+    position.y = atof(words[last_range_reading + 6].c_str());
+    position.z = 0;
+
+    quaternion.setEuler(0, 0, atof(words[last_range_reading + 7].c_str()));
+
+    /* tf needs to be publish a little bit in the future */
+    tf_odom_robot_msg.header.stamp = laser_msg.header.stamp + ros::Duration(0.01);
+
+    tf_odom_robot_msg.header.frame_id = odom_link;
+    tf_odom_robot_msg.child_frame_id = robot_link;
+
+    /* tf_odom_robot_msg.transform.translation = position */
+    tf_odom_robot_msg.transform.translation.x = position.x;
+    tf_odom_robot_msg.transform.translation.y = position.y;
+    tf_odom_robot_msg.transform.translation.z = position.z;
+
+    tf_odom_robot_msg.transform.rotation.x  = quaternion.x();
+    tf_odom_robot_msg.transform.rotation.y  = quaternion.y();
+    tf_odom_robot_msg.transform.rotation.z  = quaternion.z();
+    tf_odom_robot_msg.transform.rotation.w  = quaternion.w();
+
+    tf2_msg.transforms.push_back(tf_odom_robot_msg);
+
+    pose_msg.header.stamp = laser_msg.header.stamp;
+
+    /* pose_msg.pose.pose.position = position; */
+    pose_msg.pose.pose.position.x = position.x;
+    pose_msg.pose.pose.position.y = position.y;
+    pose_msg.pose.pose.position.z = position.z;
+
+    pose_msg.pose.pose.orientation.x = quaternion.x();
+    pose_msg.pose.pose.orientation.y = quaternion.y();
+    pose_msg.pose.pose.orientation.z = quaternion.z();
+    pose_msg.pose.pose.orientation.w = quaternion.w();
+
+    pose_msg.header.frame_id = odom_link;
+    pose_msg.child_frame_id  = robot_link;
 }
 
 void Converter::fillUpOdomMessage(std::vector<std::string> &words) {
