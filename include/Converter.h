@@ -19,6 +19,9 @@
 
 #include "Params.h"
 
+// Converts degrees to radians.
+#define radians(angleDegrees) (angleDegrees * static_cast<float>(M_PI) / 180)
+
 class Converter {
 private:
     std::ifstream carmen_file;
@@ -85,10 +88,11 @@ private:
 
     std::unordered_map<std::string, std::string> topics;
     std::unordered_map<std::string, std::string> links;
-    std::unordered_map<std::string, std::unordered_map<std::string, double>> params;
+    std::unordered_map<std::string, std::unordered_map<std::string, float>> params;
 
     void fillUpOdomMessage(std::vector<std::string> &words);
     void fillUpLaserMessage(std::vector<std::string> &words);
+    void fillUpOldLaserMessage(std::vector<std::string> &words);
     void increment_stamp();
 
 public:
