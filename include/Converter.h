@@ -22,6 +22,9 @@
 // Converts degrees to radians.
 #define radians(angleDegrees) (angleDegrees * static_cast<float>(M_PI) / 180)
 
+// Converts radians to degrees.
+#define degrees(angleRadians) (angleRadians * 180 / static_cast<float>(M_PI))
+
 class Converter {
 private:
     std::ifstream carmen_file;
